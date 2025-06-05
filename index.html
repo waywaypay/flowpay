@@ -664,6 +664,9 @@
     </div>
 
     <script>
+        // ⚠️ REPLACE THIS URL WITH YOUR ACTUAL DEPLOYMENT URL ⚠️
+        const GOOGLE_SCRIPT_URL = 'REPLACE_WITH_YOUR_DEPLOYMENT_URL';
+
         // Handle early adopter selection - show contact form if interested
         document.querySelectorAll('input[name="early_adopter"]').forEach(radio => {
             radio.addEventListener('change', function() {
@@ -703,122 +706,54 @@
         document.getElementById('paymentSurvey').addEventListener('submit', function(e) {
             e.preventDefault();
             
-            console.log('Form submission started...'); // Debug log
-            
             // Show loading state
             const submitBtn = document.querySelector('.submit-btn');
-            const originalText = submitBtn.textContent;
             submitBtn.textContent = 'Submitting...';
             submitBtn.disabled = true;
-            submitBtn.style.opacity = '0.7';
             
-            // Collect form data
+            // Collect all form data
             const formData = new FormData(this);
-            const responses = {};
             
-            // Get all form values
-            for (let [key, value] of formData.entries()) {
-                if (responses[key]) {
-                    // Handle multiple values (checkboxes)
-                    if (Array.isArray(responses[key])) {
-                        responses[key].push(value);
-                    } else {
-                        responses[key] = [responses[key], value];
-                    }
-                } else {
-                    responses[key] = value;
-                }
-            }
-            
-            // Get all checked pain points
+            // Collect pain points
             const painPoints = Array.from(document.querySelectorAll('input[name="pain_points"]:checked'))
                 .map(input => input.value);
-            responses.pain_points = painPoints.join(', ');
+            formData.set('pain_points', painPoints.join(', '));
             
-            // Get all checked use cases
+            // Collect use cases
             const useCases = Array.from(document.querySelectorAll('input[name="use_cases"]:checked'))
                 .map(input => input.value);
-            responses.use_cases = useCases.join(', ');
+            formData.set('use_cases', useCases.join(', '));
             
-            // Add timestamp
-            responses.timestamp = new Date().toISOString();
-            
-            console.log('Collected responses:', responses); // Debug log
-            
-            // Prepare data for Google Sheets
-            const sheetData = {
-                timestamp: responses.timestamp,
-                year: responses.year || '',
-                age: responses.age || '',
-                primary_app: responses.primary_app || '',
-                usage_frequency: responses.usage_frequency || '',
-                pain_points: responses.pain_points || '',
-                most_valuable_feature: responses.most_valuable_feature || '',
-                interest_rating: responses.interest_rating || '',
-                group_rating: responses.group_rating || '',
-                cashback_rating: responses.cashback_rating || '',
-                privacy_rating: responses.privacy_rating || '',
-                use_cases: responses.use_cases || '',
-                ideal_features: responses.ideal_features || '',
-                local_interest: responses.local_interest || '',
-                additional_thoughts: responses.additional_thoughts || '',
-                early_adopter: responses.early_adopter || '',
-                email: responses.email || '',
-                phone: responses.phone || '',
-                notifications: responses.notifications ? 'yes' : 'no'
-            };
-            
-            console.log('Sending data to Google Sheets:', sheetData); // Debug log
-            
-            // Submit to Google Sheets - USE YOUR ACTUAL DEPLOYMENT URL HERE
-            const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyA7hrFqwGliqRHu1b1Alm6gwDPZikb8Lv9ZvAYGQ3LwkXpxO0repD3zUSjlttX8Ls-RA/exec';
-            
-            // Create a hidden form and submit it (more reliable than fetch)
-            const form = document.createElement('form');
-            form.action = GOOGLE_SCRIPT_URL;
-            form.method = 'POST';
-            form.style.display = 'none';
-            
-            // Add all data as hidden inputs
-            for (const [key, value] of Object.entries(sheetData)) {
-                const input = document.createElement('input');
-                input.type = 'hidden';
-                input.name = key;
-                input.value = value || '';
-                form.appendChild(input);
-            }
-            
-            // Submit the form
-            document.body.appendChild(form);
-            
-            console.log('Submitting form to:', GOOGLE_SCRIPT_URL);
-            console.log('Form data:', Object.fromEntries(new FormData(form)));
-            
-            // Show success message immediately (since form submission will redirect)
-            setTimeout(() => {
-                submitBtn.textContent = '✅ Submitted!';
-                submitBtn.style.background = 'linear-gradient(135deg, #22c55e, #16a34a)';
-                submitBtn.style.opacity = '1';
+            // Submit to Google Apps Script
+            fetch(GOOGLE_SCRIPT_URL, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.text())
+            .then(result => {
+                console.log('Response:', result);
                 
                 // Show success message
+                submitBtn.textContent = '✅ Submitted!';
+                submitBtn.style.background = 'linear-gradient(135deg, #22c55e, #16a34a)';
+                
                 const successMessage = document.createElement('div');
                 successMessage.innerHTML = `
                     <div style="background: #dcfce7; border: 2px solid #22c55e; border-radius: 15px; padding: 20px; margin-top: 20px; text-align: center;">
                         <h3 style="color: #15803d; margin-bottom: 10px;">🎉 Thank you for your responses!</h3>
                         <p style="color: #16a34a;">Your feedback will help us build a better payment app for college students.</p>
-                        ${responses.early_adopter && responses.early_adopter.includes('yes') ? 
-                          '<p style="color: #16a34a; margin-top: 10px;"><strong>We\'ll be in touch about early access opportunities!</strong></p>' : ''}
                     </div>
                 `;
                 document.querySelector('.submit-section').appendChild(successMessage);
-                
-                // Scroll to success message
                 successMessage.scrollIntoView({ behavior: 'smooth' });
-                
-                // Submit the form after showing success message
-                form.submit();
-                
-            }, 1000);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                submitBtn.textContent = 'Error - Try Again';
+                submitBtn.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+                submitBtn.disabled = false;
+                alert('There was an error submitting your response. Please try again.');
+            });
         });
 
         // Add visual feedback for form interactions
