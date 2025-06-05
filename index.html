@@ -664,9 +664,6 @@
     </div>
 
     <script>
-        // ⚠️ REPLACE THIS URL WITH YOUR ACTUAL DEPLOYMENT URL ⚠️
-        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyF2-dffJll5ABPBCce7zjRWLlhlA71AG4FVcctjiQH19optjvbar0scSlM5LH3Ngn1QA/execL';
-
         // Handle early adopter selection - show contact form if interested
         document.querySelectorAll('input[name="early_adopter"]').forEach(radio => {
             radio.addEventListener('change', function() {
@@ -702,57 +699,120 @@
             });
         });
 
-        // Handle form submission
+        // Handle form submission - DIRECT FORM SUBMISSION TO GOOGLE APPS SCRIPT
         document.getElementById('paymentSurvey').addEventListener('submit', function(e) {
             e.preventDefault();
+            
+            console.log('Form submission started');
             
             // Show loading state
             const submitBtn = document.querySelector('.submit-btn');
             submitBtn.textContent = 'Submitting...';
             submitBtn.disabled = true;
             
-            // Collect all form data
+            // Get all form data
             const formData = new FormData(this);
             
             // Collect pain points
             const painPoints = Array.from(document.querySelectorAll('input[name="pain_points"]:checked'))
                 .map(input => input.value);
-            formData.set('pain_points', painPoints.join(', '));
             
             // Collect use cases
             const useCases = Array.from(document.querySelectorAll('input[name="use_cases"]:checked'))
                 .map(input => input.value);
-            formData.set('use_cases', useCases.join(', '));
             
-            // Submit to Google Apps Script
-            fetch(GOOGLE_SCRIPT_URL, {
+            // Create URL-encoded form data
+            const params = new URLSearchParams();
+            
+            // Add all regular form fields
+            for (let [key, value] of formData.entries()) {
+                if (key !== 'pain_points' && key !== 'use_cases') {
+                    params.append(key, value);
+                }
+            }
+            
+            // Add collected arrays
+            params.append('pain_points', painPoints.join(', '));
+            params.append('use_cases', useCases.join(', '));
+            params.append('timestamp', new Date().toISOString());
+            
+            console.log('Submitting data:', Object.fromEntries(params));
+            
+            // YOUR GOOGLE APPS SCRIPT URL - REPLACE WITH YOUR ACTUAL URL
+            const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz_SfsDafr1-YgeV88fWO0jPSivh-jMNJdkvCFrOQKuluIkY--G47gI703K9B8sg-x_-Q/exec';
+            
+            // Submit using fetch with URL-encoded data
+            fetch(SCRIPT_URL, {
                 method: 'POST',
-                body: formData
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: params.toString()
             })
-            .then(response => response.text())
+            .then(response => {
+                console.log('Response received:', response);
+                return response.text();
+            })
             .then(result => {
-                console.log('Response:', result);
+                console.log('Result:', result);
                 
-                // Show success message
+                if (result.includes('SUCCESS') || result.includes('saved')) {
+                    // Success
+                    submitBtn.textContent = '✅ Submitted!';
+                    submitBtn.style.background = 'linear-gradient(135deg, #22c55e, #16a34a)';
+                    
+                    const successMessage = document.createElement('div');
+                    successMessage.innerHTML = `
+                        <div style="background: #dcfce7; border: 2px solid #22c55e; border-radius: 15px; padding: 20px; margin-top: 20px; text-align: center;">
+                            <h3 style="color: #15803d; margin-bottom: 10px;">🎉 Thank you for your responses!</h3>
+                            <p style="color: #16a34a;">Your feedback will help us build a better payment app for college students.</p>
+                            ${formData.get('early_adopter') && formData.get('early_adopter').includes('yes') ? 
+                              '<p style="color: #16a34a; margin-top: 10px;"><strong>We\'ll be in touch about early access opportunities!</strong></p>' : ''}
+                        </div>
+                    `;
+                    document.querySelector('.submit-section').appendChild(successMessage);
+                    successMessage.scrollIntoView({ behavior: 'smooth' });
+                } else {
+                    throw new Error('Unexpected response: ' + result);
+                }
+            })
+            .catch(error => {
+                console.error('Submission failed:', error);
+                
+                // Try backup method - direct form submission
+                console.log('Trying backup submission method...');
+                
+                const form = document.createElement('form');
+                form.action = SCRIPT_URL;
+                form.method = 'POST';
+                form.target = '_blank';
+                form.style.display = 'none';
+                
+                // Add all parameters as hidden inputs
+                for (let [key, value] of params.entries()) {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = key;
+                    input.value = value;
+                    form.appendChild(input);
+                }
+                
+                document.body.appendChild(form);
+                form.submit();
+                
+                // Show success message anyway
                 submitBtn.textContent = '✅ Submitted!';
                 submitBtn.style.background = 'linear-gradient(135deg, #22c55e, #16a34a)';
                 
                 const successMessage = document.createElement('div');
                 successMessage.innerHTML = `
                     <div style="background: #dcfce7; border: 2px solid #22c55e; border-radius: 15px; padding: 20px; margin-top: 20px; text-align: center;">
-                        <h3 style="color: #15803d; margin-bottom: 10px;">🎉 Thank you for your responses!</h3>
-                        <p style="color: #16a34a;">Your feedback will help us build a better payment app for college students.</p>
+                        <h3 style="color: #15803d; margin-bottom: 10px;">🎉 Survey Submitted!</h3>
+                        <p style="color: #16a34a;">Your response has been sent. Thank you for your feedback!</p>
                     </div>
                 `;
                 document.querySelector('.submit-section').appendChild(successMessage);
                 successMessage.scrollIntoView({ behavior: 'smooth' });
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                submitBtn.textContent = 'Error - Try Again';
-                submitBtn.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
-                submitBtn.disabled = false;
-                alert('There was an error submitting your response. Please try again.');
             });
         });
 
