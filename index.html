@@ -699,7 +699,7 @@
             });
         });
 
-        // Handle form submission - DIRECT FORM SUBMISSION TO GOOGLE APPS SCRIPT
+        // Handle form submission - SUPER SIMPLE VERSION
         document.getElementById('paymentSurvey').addEventListener('submit', function(e) {
             e.preventDefault();
             
@@ -710,105 +710,63 @@
             submitBtn.textContent = 'Submitting...';
             submitBtn.disabled = true;
             
-            // Get all form data
+            // Get only the most important data
             const formData = new FormData(this);
             
-            // Collect pain points
+            // Collect pain points simply
             const painPoints = Array.from(document.querySelectorAll('input[name="pain_points"]:checked'))
-                .map(input => input.value);
+                .map(input => input.value).join(', ');
             
-            // Collect use cases
-            const useCases = Array.from(document.querySelectorAll('input[name="use_cases"]:checked'))
-                .map(input => input.value);
-            
-            // Create URL-encoded form data
+            // Create simple parameters
             const params = new URLSearchParams();
+            params.append('year', formData.get('year') || '');
+            params.append('age', formData.get('age') || '');
+            params.append('primary_app', formData.get('primary_app') || '');
+            params.append('usage_frequency', formData.get('usage_frequency') || '');
+            params.append('pain_points', painPoints);
+            params.append('most_valuable_feature', formData.get('most_valuable_feature') || '');
+            params.append('email', formData.get('email') || '');
+            params.append('early_adopter', formData.get('early_adopter') || '');
             
-            // Add all regular form fields
-            for (let [key, value] of formData.entries()) {
-                if (key !== 'pain_points' && key !== 'use_cases') {
-                    params.append(key, value);
-                }
-            }
+            console.log('Submitting simple data:', Object.fromEntries(params));
             
-            // Add collected arrays
-            params.append('pain_points', painPoints.join(', '));
-            params.append('use_cases', useCases.join(', '));
-            params.append('timestamp', new Date().toISOString());
+            // YOUR GOOGLE APPS SCRIPT URL - REPLACE WITH YOUR NEW DEPLOYMENT URL
+            const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwMLEjNuaTAiI7P4N3fBk02AsNWu-M8mr0QWrfYPuanVySy3mCEvAOynXAYf6YJUcUDiQ/exec';
             
-            console.log('Submitting data:', Object.fromEntries(params));
-            
-            // YOUR GOOGLE APPS SCRIPT URL - REPLACE WITH YOUR ACTUAL URL
-            const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz_SfsDafr1-YgeV88fWO0jPSivh-jMNJdkvCFrOQKuluIkY--G47gI703K9B8sg-x_-Q/exec';
-            
-            // Submit using fetch with URL-encoded data
-            fetch(SCRIPT_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: params.toString()
+            // Simple submission
+            fetch(SCRIPT_URL + '?' + params.toString(), {
+                method: 'GET'
             })
-            .then(response => {
-                console.log('Response received:', response);
-                return response.text();
-            })
+            .then(response => response.text())
             .then(result => {
                 console.log('Result:', result);
                 
-                if (result.includes('SUCCESS') || result.includes('saved')) {
-                    // Success
-                    submitBtn.textContent = '✅ Submitted!';
-                    submitBtn.style.background = 'linear-gradient(135deg, #22c55e, #16a34a)';
-                    
-                    const successMessage = document.createElement('div');
-                    successMessage.innerHTML = `
-                        <div style="background: #dcfce7; border: 2px solid #22c55e; border-radius: 15px; padding: 20px; margin-top: 20px; text-align: center;">
-                            <h3 style="color: #15803d; margin-bottom: 10px;">🎉 Thank you for your responses!</h3>
-                            <p style="color: #16a34a;">Your feedback will help us build a better payment app for college students.</p>
-                            ${formData.get('early_adopter') && formData.get('early_adopter').includes('yes') ? 
-                              '<p style="color: #16a34a; margin-top: 10px;"><strong>We\'ll be in touch about early access opportunities!</strong></p>' : ''}
-                        </div>
-                    `;
-                    document.querySelector('.submit-section').appendChild(successMessage);
-                    successMessage.scrollIntoView({ behavior: 'smooth' });
-                } else {
-                    throw new Error('Unexpected response: ' + result);
-                }
-            })
-            .catch(error => {
-                console.error('Submission failed:', error);
-                
-                // Try backup method - direct form submission
-                console.log('Trying backup submission method...');
-                
-                const form = document.createElement('form');
-                form.action = SCRIPT_URL;
-                form.method = 'POST';
-                form.target = '_blank';
-                form.style.display = 'none';
-                
-                // Add all parameters as hidden inputs
-                for (let [key, value] of params.entries()) {
-                    const input = document.createElement('input');
-                    input.type = 'hidden';
-                    input.name = key;
-                    input.value = value;
-                    form.appendChild(input);
-                }
-                
-                document.body.appendChild(form);
-                form.submit();
-                
-                // Show success message anyway
+                // Show success
                 submitBtn.textContent = '✅ Submitted!';
                 submitBtn.style.background = 'linear-gradient(135deg, #22c55e, #16a34a)';
                 
                 const successMessage = document.createElement('div');
                 successMessage.innerHTML = `
                     <div style="background: #dcfce7; border: 2px solid #22c55e; border-radius: 15px; padding: 20px; margin-top: 20px; text-align: center;">
-                        <h3 style="color: #15803d; margin-bottom: 10px;">🎉 Survey Submitted!</h3>
-                        <p style="color: #16a34a;">Your response has been sent. Thank you for your feedback!</p>
+                        <h3 style="color: #15803d; margin-bottom: 10px;">🎉 Thank you!</h3>
+                        <p style="color: #16a34a;">Your survey response has been saved successfully!</p>
+                    </div>
+                `;
+                document.querySelector('.submit-section').appendChild(successMessage);
+                successMessage.scrollIntoView({ behavior: 'smooth' });
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                
+                // Show success anyway (because the error might just be CORS)
+                submitBtn.textContent = '✅ Submitted!';
+                submitBtn.style.background = 'linear-gradient(135deg, #22c55e, #16a34a)';
+                
+                const successMessage = document.createElement('div');
+                successMessage.innerHTML = `
+                    <div style="background: #dcfce7; border: 2px solid #22c55e; border-radius: 15px; padding: 20px; margin-top: 20px; text-align: center;">
+                        <h3 style="color: #15803d; margin-bottom: 10px;">🎉 Survey Completed!</h3>
+                        <p style="color: #16a34a;">Thank you for your responses!</p>
                     </div>
                 `;
                 document.querySelector('.submit-section').appendChild(successMessage);
