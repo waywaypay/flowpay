@@ -703,11 +703,14 @@
         document.getElementById('paymentSurvey').addEventListener('submit', function(e) {
             e.preventDefault();
             
+            console.log('Form submission started...'); // Debug log
+            
             // Show loading state
             const submitBtn = document.querySelector('.submit-btn');
             const originalText = submitBtn.textContent;
             submitBtn.textContent = 'Submitting...';
             submitBtn.disabled = true;
+            submitBtn.style.opacity = '0.7';
             
             // Collect form data
             const formData = new FormData(this);
@@ -740,6 +743,8 @@
             // Add timestamp
             responses.timestamp = new Date().toISOString();
             
+            console.log('Collected responses:', responses); // Debug log
+            
             // Prepare data for Google Sheets
             const sheetData = {
                 timestamp: responses.timestamp,
@@ -763,21 +768,37 @@
                 notifications: responses.notifications ? 'yes' : 'no'
             };
             
-            // Submit to Google Sheets
+            console.log('Sending data to Google Sheets:', sheetData); // Debug log
+            
+            // Submit to Google Sheets - USE YOUR ACTUAL DEPLOYMENT URL HERE
             const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwoaOwmrMy2cXoo9DtU8AyXUeBxeNVTs9UWIN0iXruEeDBD96QohoqLmY4LvQNwBjupSg/exec';
             
-            fetch(GOOGLE_SCRIPT_URL, {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(sheetData)
-            })
-            .then(() => {
-                // Success message
+            // Create a hidden form and submit it (more reliable than fetch)
+            const form = document.createElement('form');
+            form.action = GOOGLE_SCRIPT_URL;
+            form.method = 'POST';
+            form.style.display = 'none';
+            
+            // Add all data as hidden inputs
+            for (const [key, value] of Object.entries(sheetData)) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = key;
+                input.value = value || '';
+                form.appendChild(input);
+            }
+            
+            // Submit the form
+            document.body.appendChild(form);
+            
+            console.log('Submitting form to:', GOOGLE_SCRIPT_URL);
+            console.log('Form data:', Object.fromEntries(new FormData(form)));
+            
+            // Show success message immediately (since form submission will redirect)
+            setTimeout(() => {
                 submitBtn.textContent = '✅ Submitted!';
                 submitBtn.style.background = 'linear-gradient(135deg, #22c55e, #16a34a)';
+                submitBtn.style.opacity = '1';
                 
                 // Show success message
                 const successMessage = document.createElement('div');
@@ -794,16 +815,10 @@
                 // Scroll to success message
                 successMessage.scrollIntoView({ behavior: 'smooth' });
                 
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                submitBtn.textContent = 'Error - Try Again';
-                submitBtn.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
-                submitBtn.disabled = false;
+                // Submit the form after showing success message
+                form.submit();
                 
-                // Show error message
-                alert('There was an error submitting your response. Please try again or contact us directly.');
-            });
+            }, 1000);
         });
 
         // Add visual feedback for form interactions
