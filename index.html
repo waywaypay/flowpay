@@ -730,4 +730,99 @@
             // Get all checked pain points
             const painPoints = Array.from(document.querySelectorAll('input[name="pain_points"]:checked'))
                 .map(input => input.value);
-            responses
+            responses.pain_points = painPoints.join(', ');
+            
+            // Get all checked use cases
+            const useCases = Array.from(document.querySelectorAll('input[name="use_cases"]:checked'))
+                .map(input => input.value);
+            responses.use_cases = useCases.join(', ');
+            
+            // Add timestamp
+            responses.timestamp = new Date().toISOString();
+            
+            // Prepare data for Google Sheets
+            const sheetData = {
+                timestamp: responses.timestamp,
+                year: responses.year || '',
+                age: responses.age || '',
+                primary_app: responses.primary_app || '',
+                usage_frequency: responses.usage_frequency || '',
+                pain_points: responses.pain_points || '',
+                most_valuable_feature: responses.most_valuable_feature || '',
+                interest_rating: responses.interest_rating || '',
+                group_rating: responses.group_rating || '',
+                cashback_rating: responses.cashback_rating || '',
+                privacy_rating: responses.privacy_rating || '',
+                use_cases: responses.use_cases || '',
+                ideal_features: responses.ideal_features || '',
+                local_interest: responses.local_interest || '',
+                additional_thoughts: responses.additional_thoughts || '',
+                early_adopter: responses.early_adopter || '',
+                email: responses.email || '',
+                phone: responses.phone || '',
+                notifications: responses.notifications ? 'yes' : 'no'
+            };
+            
+            // Submit to Google Sheets
+            const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwoaOwmrMy2cXoo9DtU8AyXUeBxeNVTs9UWIN0iXruEeDBD96QohoqLmY4LvQNwBjupSg/exec';
+            
+            fetch(GOOGLE_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(sheetData)
+            })
+            .then(() => {
+                // Success message
+                submitBtn.textContent = '✅ Submitted!';
+                submitBtn.style.background = 'linear-gradient(135deg, #22c55e, #16a34a)';
+                
+                // Show success message
+                const successMessage = document.createElement('div');
+                successMessage.innerHTML = `
+                    <div style="background: #dcfce7; border: 2px solid #22c55e; border-radius: 15px; padding: 20px; margin-top: 20px; text-align: center;">
+                        <h3 style="color: #15803d; margin-bottom: 10px;">🎉 Thank you for your responses!</h3>
+                        <p style="color: #16a34a;">Your feedback will help us build a better payment app for college students.</p>
+                        ${responses.early_adopter && responses.early_adopter.includes('yes') ? 
+                          '<p style="color: #16a34a; margin-top: 10px;"><strong>We\'ll be in touch about early access opportunities!</strong></p>' : ''}
+                    </div>
+                `;
+                document.querySelector('.submit-section').appendChild(successMessage);
+                
+                // Scroll to success message
+                successMessage.scrollIntoView({ behavior: 'smooth' });
+                
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                submitBtn.textContent = 'Error - Try Again';
+                submitBtn.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+                submitBtn.disabled = false;
+                
+                // Show error message
+                alert('There was an error submitting your response. Please try again or contact us directly.');
+            });
+        });
+
+        // Add visual feedback for form interactions
+        document.querySelectorAll('input[type="radio"], input[type="checkbox"]').forEach(input => {
+            input.addEventListener('change', function() {
+                if (this.type === 'radio') {
+                    // Remove selected class from siblings
+                    const name = this.name;
+                    document.querySelectorAll(`input[name="${name}"]`).forEach(radio => {
+                        const option = radio.closest('.option');
+                        if (option) option.classList.remove('selected');
+                    });
+                    
+                    // Add selected class to current option
+                    const option = this.closest('.option');
+                    if (option) option.classList.add('selected');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
